@@ -24,18 +24,18 @@ def gen_frames():
         for encodeFace, faceLoc in zip(encodeCurFrame, faceCurFrame):
             matches = face_recognition.compare_faces(encodeListKnown, encodeFace)
             faceDis = face_recognition.face_distance(encodeListKnown, encodeFace)
-            print("matches", matches)
-            print("faceDis", faceDis)
+            # print("matches", matches)
+            # print("faceDis", faceDis)
             matchIndex = np.argmin(faceDis)
 
             if matches[matchIndex]:
-                print("Known face detected")
+                # print("Known face detected")
                 student_id = studentIds[matchIndex]  # ID from face recognition
                 print(student_id)
                 y1, x2, y2, x1 = faceLoc
                 y1, x2, y2, x1 = y1*4, x2*4, y2*4, x1*4
-                bbox = 55 + x1, 162 + y1, x2 - x1, y2 - y1
-                imgBackground = cvzone.cornerRect(frame, bbox, rt=0)
+                bbox = x1, y1, x2 - x1, y2 - y1
+                frame= cvzone.cornerRect(frame, bbox, rt=0)
                 cv2.putText(frame, student_id, (bbox[0], bbox[1] - 35), cv2.FONT_HERSHEY_SIMPLEX, 0.9,
                             (255, 255, 0), 3, lineType=cv2.LINE_AA)
             

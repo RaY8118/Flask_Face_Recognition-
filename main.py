@@ -43,3 +43,5 @@ while True:
     if k == ord('q'):
         break
     cv2.waitKey(1)
+    cv2.imshow("Face Attendance", imgBackground)
+
