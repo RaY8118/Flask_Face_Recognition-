@@ -6,7 +6,15 @@ import face_recognition
 import cvzone
 
 app=Flask(__name__)
-camera = cv2.VideoCapture(0)
+webcam = True
+ip_cam = False
+if webcam:
+    camera = cv2.VideoCapture(0)
+elif ip_cam:
+    camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
+else:
+    print("Couldnt find a source")
+    
 file = open('Resources/EncodeFile.p', 'rb')
 encodeListKnownWithIds = pickle.load(file)
 file.close()
@@ -53,5 +61,5 @@ def index():
 @app.route('/video')
 def video():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-if __name__=='__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
