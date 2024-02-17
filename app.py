@@ -11,7 +11,7 @@ ip_cam = False
 if webcam:
     camera = cv2.VideoCapture(0)
 elif ip_cam:
-    camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
+    camera = cv2.VideoCapture('http://10.0.42.140:8080/video')
 else:
     print("Couldnt find a source")
     
@@ -55,11 +55,15 @@ def gen_frames():
         yield (b'--frame\r\n'
                     b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
      
-@app.route('/')
-def index():
-    return render_template('index.html')
-@app.route('/video')
-def video():
-    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+# @app.route('/')
+# def index():
+#     return render_template('index.html')
+# @app.route('/video')
+# def video():
+#     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+@app.route('/form')
+def form():
+    return render_template('form.html')
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True)

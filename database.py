@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, Response, flash
 import cv2
 import pickle
@@ -13,8 +12,9 @@ import time
 import threading
 
 app = Flask(__name__)
-# camera = cv2.VideoCapture(0)
-camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
+app.secret_key = 'abc'
+camera = cv2.VideoCapture(0)
+#camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
 file = open('Resources/EncodeFile.p', 'rb')
 encodeListKnownWithIds = pickle.load(file)
 file.close()
@@ -24,8 +24,8 @@ with open('Resources/student_data.json', 'r') as json_file:
     student_data = json.load(json_file)
 
 recognized_students = set()
-morn_time = datetime_time(17, 0)
-even_time = datetime_time(23, 0)
+morn_time = datetime_time(14, 0)
+even_time = datetime_time(20, 0)
 curr_time = datetime.datetime.now().time()
 if morn_time <= curr_time < even_time:
     morn_attendance = True
@@ -187,5 +187,23 @@ def video():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame', content_type='multipart/x-mixed-replace; boundary=frame')
 
 
+def display_attendance():
+    try:
+        # Connect to the database
+        conn = sqlite3.connect('Database/attendance_database.db')
+        cursor = conn.cursor()
+
+        # Execute SQL query to fetch attendance data
+        cursor.execute("SELECT * FROM attendance")
+        data = cursor.fetchall()
+
+        # Close the cursor and database connection
+        cursor.close()
+        conn.close()
+        return data
+
+    except Exception as e:
+        return str(e)
+
 if __name__ == '__main__':
-    app.run(debug=True, host='192.168.0.102')
+    app.run(debug=True)
