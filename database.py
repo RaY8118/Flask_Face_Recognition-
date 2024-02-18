@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, flash
+from flask import Flask, render_template, Response, flash, request
 import cv2
 import pickle
 import numpy as np
@@ -10,21 +10,28 @@ import datetime
 from datetime import time as datetime_time
 import time
 import threading
+import os
+
 
 app = Flask(__name__)
 app.secret_key = 'abc'
-camera = cv2.VideoCapture(0)
-#camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
+# camera = cv2.VideoCapture(0)
+camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
 file = open('Resources/EncodeFile.p', 'rb')
 encodeListKnownWithIds = pickle.load(file)
 file.close()
 encodeListKnown, studentIds = encodeListKnownWithIds
+json_file_path = 'student_data.json'
 
+# Create the JSON file if it doesn't exist
+if not os.path.exists(json_file_path):
+    with open(json_file_path, 'w') as json_file:
+        json.dump([], json_file)
 with open('Resources/student_data.json', 'r') as json_file:
     student_data = json.load(json_file)
 
 recognized_students = set()
-morn_time = datetime_time(14, 0)
+morn_time = datetime_time(10, 0)
 even_time = datetime_time(20, 0)
 curr_time = datetime.datetime.now().time()
 if morn_time <= curr_time < even_time:
@@ -57,6 +64,26 @@ cursor.execute('''
         reg_id TEXT
     )
 ''')
+
+
+camera = None  # Global variable to store camera object
+
+# Function to start the camera
+
+
+def start_camera():
+    global camera
+    #camera = cv2.VideoCapture(0)
+    camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
+
+# Function to stop the camera
+
+
+def stop_camera():
+    global camera
+    if camera is not None:
+        camera.release()
+        camera = None
 
 
 def compare(encodeListKnown, encodeFace):
@@ -132,8 +159,11 @@ def eveningattendance(name, current_date):
 
 
 def gen_frames():
-    while True:
+    global camera
+    while camera is not None:
         success, frame = camera.read()
+        if not success:
+            break
         imgS = cv2.resize(frame, (0, 0), None, 0.25, 0.25)
         imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
         faceCurFrame = face_recognition.face_locations(imgS)
@@ -176,17 +206,12 @@ def gen_frames():
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 
-@app.route('/')
-def index():
-    # Pass student_id to the template
-    return render_template('index.html')
-
-
 @app.route('/video')
 def video():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame', content_type='multipart/x-mixed-replace; boundary=frame')
 
 
+@app.route('/display_attendance')
 def display_attendance():
     try:
         # Connect to the database
@@ -205,5 +230,59 @@ def display_attendance():
     except Exception as e:
         return str(e)
 
+
+@app.route('/form', methods=['GET', 'POST'])
+def form():
+    stop_camera()
+    if request.method == 'POST':
+        # Get the form data
+        name = request.form['name']
+        branch = request.form['branch']
+        div = request.form['div']
+        rollno = request.form['rollno']
+        regid = request.form['regid']
+
+        # Handle file upload
+        img = request.files['img']
+
+        # Generate a secure random string for the filename
+        filename = regid + os.path.splitext(img.filename)[1]
+
+        # Save the uploaded image with the new filename
+        img.save(os.path.join('uploads', filename))
+
+        # Create a dictionary with the form data
+        student_data = {
+            'name': name,
+            'branch': branch,
+            'div': div,
+            'rollno': rollno,
+            'regid': regid,
+            'img': filename  # Save the filename in the dictionary
+        }
+
+        # Read existing student data from the JSON file
+        with open(json_file_path, 'r') as json_file:
+            existing_data = json.load(json_file)
+
+        # Append the new student data to the existing list
+        existing_data.append(student_data)
+
+        # Write the updated data back to the JSON file
+        with open(json_file_path, 'w') as json_file:
+            json.dump(existing_data, json_file)
+
+        return 'Form submitted successfully!'
+
+    return render_template('form.html')
+
+
+@app.route('/')
+def index():
+    start_camera()
+    data = display_attendance()
+    return render_template('index.html', data=data)
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='192.168.0.106')

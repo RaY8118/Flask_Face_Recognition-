@@ -48,13 +48,9 @@
             </table>
         </div>
     </div>
-    {%with messages = get_flashed_messages()%}
-        {% if messages%}
-            {% for message in messages%}
-                <p> {{message}}</p>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+    <button><a href="/form">Form</a></button>
+    <button><a href="/start_camera">Start camera</a></button>
+    <button><a href="/stop_camera">Stop camera</a></button>
 </body>
 
 </html>
