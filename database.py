@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, flash, request
+from flask import Flask, render_template, Response, flash, request, redirect, url_for
 import cv2
 import pickle
 import numpy as np
@@ -15,19 +15,19 @@ import os
 
 app = Flask(__name__)
 app.secret_key = 'abc'
-# camera = cv2.VideoCapture(0)
-camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
+camera = cv2.VideoCapture(0)
+#camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
 file = open('Resources/EncodeFile.p', 'rb')
 encodeListKnownWithIds = pickle.load(file)
 file.close()
 encodeListKnown, studentIds = encodeListKnownWithIds
-json_file_path = 'student_data.json'
+json_file_path = 'Resources\studentdata.json'
 
-# Create the JSON file if it doesn't exist
+#Create the JSON file if it doesn't exist
 if not os.path.exists(json_file_path):
     with open(json_file_path, 'w') as json_file:
-        json.dump([], json_file)
-with open('Resources/student_data.json', 'r') as json_file:
+        json.dump({}, json_file)
+with open(json_file_path, 'r') as json_file:
     student_data = json.load(json_file)
 
 recognized_students = set()
@@ -40,9 +40,6 @@ if morn_time <= curr_time < even_time:
 else:
     even_attendance = True
     morn_attendance = False
-# Load the student data from the JSON file
-with open('Resources/student_data.json', 'r') as json_file:
-    student_data = json.load(json_file)
 
 # Connect to an SQLite database
 conn = sqlite3.connect('Database/attendance_database.db')
@@ -73,8 +70,8 @@ camera = None  # Global variable to store camera object
 
 def start_camera():
     global camera
-    #camera = cv2.VideoCapture(0)
-    camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
+    camera = cv2.VideoCapture(0)
+    #camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
 
 # Function to stop the camera
 
@@ -126,7 +123,6 @@ def morningattendance(name, current_date, roll_no, div, branch, reg_id):
         flash("Your attendance has been recorded", "success")
     else:
         print("Your Attendance is already been recorded before")
-        flash("Your Attendance is already been recorded before", "warning")
     # Close the cursor and database connection
     cursor.close()
     conn.close()
@@ -152,7 +148,6 @@ def eveningattendance(name, current_date):
                        (end_time, name, current_date))
         conn.commit()
         print("End time recorded in the database")
-        flash("End time has been recorded")
     # Close the cursor and database connection
     cursor.close()
     conn.close()
@@ -168,7 +163,7 @@ def gen_frames():
         imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
         faceCurFrame = face_recognition.face_locations(imgS)
         encodeCurFrame = face_recognition.face_encodings(imgS, faceCurFrame)
-        k = cv2.waitKey(1)
+
 
         for encodeFace, faceLoc in zip(encodeCurFrame, faceCurFrame):
             matches, faceDis, matchIndex = compare(encodeListKnown, encodeFace)
@@ -241,7 +236,7 @@ def form():
         div = request.form['div']
         rollno = request.form['rollno']
         regid = request.form['regid']
-
+        new_student_id = str(regid)
         # Handle file upload
         img = request.files['img']
 
@@ -252,7 +247,7 @@ def form():
         img.save(os.path.join('uploads', filename))
 
         # Create a dictionary with the form data
-        student_data = {
+        new_student = {
             'name': name,
             'branch': branch,
             'div': div,
@@ -261,21 +256,21 @@ def form():
             'img': filename  # Save the filename in the dictionary
         }
 
-        # Read existing student data from the JSON file
-        with open(json_file_path, 'r') as json_file:
-            existing_data = json.load(json_file)
-
-        # Append the new student data to the existing list
-        existing_data.append(student_data)
-
-        # Write the updated data back to the JSON file
+        student_data[new_student_id] = new_student
+        sorted_data = dict(sorted(student_data.items()))
         with open(json_file_path, 'w') as json_file:
-            json.dump(existing_data, json_file)
+            json.dump(sorted_data, json_file, indent=4)
 
-        return 'Form submitted successfully!'
+        #return 'Form submitted successfully!'
+        return '''
+            <script>
+                alert("Entry created successfully!");
+                window.location.href = "/form";
+            </script>
+        '''
 
     return render_template('form.html')
-
+    
 
 @app.route('/')
 def index():
@@ -285,4 +280,4 @@ def index():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='192.168.0.106')
+    app.run(debug=True)
