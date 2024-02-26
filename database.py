@@ -12,6 +12,8 @@ import time
 import threading
 import os
 from flask_sqlalchemy import SQLAlchemy
+import pymysql
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'abc'
@@ -316,9 +318,59 @@ def convert_sqlite_to_json(database_path, table_name, output_directory):
         conn.close()
 
 
+def insert_json_to_mysql(host, user, password, database, table, json_directory):
+    try:
+        # Get today's date
+        today_date = datetime.datetime.now().date()
+
+        # Construct the JSON file path with today's date
+        json_file = f"{json_directory}/{today_date}.json"
+
+        # Read JSON data from file
+        with open(json_file) as f:
+            json_data = f.read()
+
+        # Load JSON data into Python object
+        json_obj = json.loads(json_data)
+
+        # Connect to MySQL database
+        con = pymysql.connect(host=host, user=user,
+                              password=password, db=database)
+        cursor = con.cursor()
+
+        # Iterate over JSON objects and insert into MySQL table
+        for item in json_obj:
+            id = item.get("id")
+            name = item.get("name")
+            start_time = item.get("start_time")
+            end_time = item.get("end_time")
+            date = item.get("date")
+            roll_no = item.get("roll_no")
+            division = item.get("division")
+            branch = item.get("branch")
+            reg_id = item.get("reg_id")
+
+            cursor.execute(
+                f"INSERT INTO {table} (id, name, start_time, end_time, date, roll_no, division, branch, reg_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (id, name, start_time, end_time, date,
+                 roll_no, division, branch, reg_id)
+            )
+
+        # Commit changes and close connection
+        con.commit()
+        con.close()
+
+        print("Data successfully inserted into MySQL table.")
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+
 if curr_time > even_time:
     convert_sqlite_to_json(
         'Database/attendance_database.db', 'attendance', 'Resources')
+    insert_json_to_mysql("localhost", "root", "", "college",
+                     "attendance", "Resources")
 
 
 @app.route('/')
