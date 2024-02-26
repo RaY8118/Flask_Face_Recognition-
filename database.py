@@ -11,19 +11,21 @@ from datetime import time as datetime_time
 import time
 import threading
 import os
-
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-app.secret_key = 'abc'
+app.config['SECRET_KEY'] = 'abc'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@localhost/college'
+db = SQLAlchemy(app)
 camera = cv2.VideoCapture(0)
-#camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
+# camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
 file = open('Resources/EncodeFile.p', 'rb')
 encodeListKnownWithIds = pickle.load(file)
 file.close()
 encodeListKnown, studentIds = encodeListKnownWithIds
 json_file_path = 'Resources\studentdata.json'
 
-#Create the JSON file if it doesn't exist
+# Create the JSON file if it doesn't exist
 if not os.path.exists(json_file_path):
     with open(json_file_path, 'w') as json_file:
         json.dump({}, json_file)
@@ -31,8 +33,8 @@ with open(json_file_path, 'r') as json_file:
     student_data = json.load(json_file)
 
 recognized_students = set()
-morn_time = datetime_time(10, 0)
-even_time = datetime_time(20, 0)
+morn_time = datetime_time(20, 0)
+even_time = datetime_time(21, 0)
 curr_time = datetime.datetime.now().time()
 if morn_time <= curr_time < even_time:
     morn_attendance = True
@@ -63,6 +65,19 @@ cursor.execute('''
 ''')
 
 
+class Student_data(db.Model):
+    __tablename__ = 'student_data'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), unique=True, nullable=False)
+    branch = db.Column(db.String(80), unique=True, nullable=False)
+    division = db.Column(db.String(80), unique=True, nullable=False)
+    regid = db.Column(db.String(80), unique=True, nullable=False)
+    rollno = db.Column(db.String(120), unique=True, nullable=False)
+
+    def __repr__(self):
+        return '<User %r>' % self.username
+
+
 camera = None  # Global variable to store camera object
 
 # Function to start the camera
@@ -71,7 +86,7 @@ camera = None  # Global variable to store camera object
 def start_camera():
     global camera
     camera = cv2.VideoCapture(0)
-    #camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
+    # camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
 
 # Function to stop the camera
 
@@ -164,7 +179,6 @@ def gen_frames():
         faceCurFrame = face_recognition.face_locations(imgS)
         encodeCurFrame = face_recognition.face_encodings(imgS, faceCurFrame)
 
-
         for encodeFace, faceLoc in zip(encodeCurFrame, faceCurFrame):
             matches, faceDis, matchIndex = compare(encodeListKnown, encodeFace)
             student_id = get_data(matches, matchIndex, studentIds)
@@ -226,51 +240,36 @@ def display_attendance():
         return str(e)
 
 
-@app.route('/form', methods=['GET', 'POST'])
-def form():
+@app.route('/data')
+def data():
     stop_camera()
-    if request.method == 'POST':
-        # Get the form data
-        name = request.form['name']
-        branch = request.form['branch']
-        div = request.form['div']
-        rollno = request.form['rollno']
-        regid = request.form['regid']
-        new_student_id = str(regid)
-        # Handle file upload
-        img = request.files['img']
+    return render_template('data.html')
 
-        # Generate a secure random string for the filename
-        filename = regid + os.path.splitext(img.filename)[1]
 
-        # Save the uploaded image with the new filename
-        img.save(os.path.join('uploads', filename))
+@app.route('/add_user', methods=['POST'])
+def add_user():
+    name = request.form['name']
+    branch = request.form['branch']
+    division = request.form['division']
+    regid = request.form['regid']
+    rollno = request.form['rollno']
 
-        # Create a dictionary with the form data
-        new_student = {
-            'name': name,
-            'branch': branch,
-            'div': div,
-            'rollno': rollno,
-            'regid': regid,
-            'img': filename  # Save the filename in the dictionary
-        }
+    # Check if a student with the same name already exists
+    existing_student = Student_data.query.filter_by(name=name).first()
 
-        student_data[new_student_id] = new_student
-        sorted_data = dict(sorted(student_data.items()))
-        with open(json_file_path, 'w') as json_file:
-            json.dump(sorted_data, json_file, indent=4)
+    if existing_student:
+        # Student already exists, handle the error (e.g., display a message)
+        flash('Student already exists!', 'error')
+        return redirect(url_for('data'))
+    else:
+        # Student does not exist, proceed to add the new student
+        user = Student_data(name=name, rollno=rollno, division=division,
+                            branch=branch, regid=regid)
+        db.session.add(user)
+        db.session.commit()
+        flash('Student added successfully!', 'success')
+        return redirect(url_for('data'))
 
-        #return 'Form submitted successfully!'
-        return '''
-            <script>
-                alert("Entry created successfully!");
-                window.location.href = "/form";
-            </script>
-        '''
-
-    return render_template('form.html')
-    
 
 @app.route('/')
 def index():
