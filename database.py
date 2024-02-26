@@ -33,8 +33,8 @@ with open(json_file_path, 'r') as json_file:
     student_data = json.load(json_file)
 
 recognized_students = set()
-morn_time = datetime_time(20, 0)
-even_time = datetime_time(21, 0)
+morn_time = datetime_time(19, 0)
+even_time = datetime_time(20, 0)
 curr_time = datetime.datetime.now().time()
 if morn_time <= curr_time < even_time:
     morn_attendance = True
@@ -269,6 +269,56 @@ def add_user():
         db.session.commit()
         flash('Student added successfully!', 'success')
         return redirect(url_for('data'))
+
+
+def convert_sqlite_to_json(database_path, table_name, output_directory):
+    # Connect to the SQLite database
+    conn = sqlite3.connect(database_path)
+    cursor = conn.cursor()
+
+    try:
+        # Execute a query to select data from the specified table
+        cursor.execute(f'SELECT * FROM {table_name}')
+        rows = cursor.fetchall()
+
+        # Convert the rows to a list of dictionaries
+        data = []
+        for row in rows:
+            row_dict = {
+                "id": row[0],
+                "name": row[1],
+                "start_time": row[2],
+                "end_time": row[3],
+                "date": row[4],
+                "roll_no": row[5],  # Adjust the key name as per your data
+                "division": row[6],
+                "branch": row[7],
+                "reg_id": row[8]  # Adjust the key name as per your data
+            }
+            data.append(row_dict)
+
+        # Generate output filename based on today's date
+        today_date = datetime.datetime.now().date()
+        output_file = f'{output_directory}/{today_date}.json'
+
+        # Write the data to the JSON file
+        with open(output_file, 'w') as f:
+            json.dump(data, f, indent=4)
+
+        print(
+            f"Data from table '{table_name}' in '{database_path}' successfully exported to '{output_file}'.")
+
+    except sqlite3.Error as e:
+        print(f"Error: {e}")
+
+    finally:
+        # Close the connection
+        conn.close()
+
+
+if curr_time > even_time:
+    convert_sqlite_to_json(
+        'Database/attendance_database.db', 'attendance', 'Resources')
 
 
 @app.route('/')
