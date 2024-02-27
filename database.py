@@ -19,6 +19,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'abc'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@localhost/college'
 db = SQLAlchemy(app)
+camera = None  # Global variable to store camera object
 camera = cv2.VideoCapture(0)
 # camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
 file = open('Resources/EncodeFile.p', 'rb')
@@ -35,8 +36,8 @@ with open(json_file_path, 'r') as json_file:
     student_data = json.load(json_file)
 
 recognized_students = set()
-morn_time = datetime_time(19, 0)
-even_time = datetime_time(20, 0)
+morn_time = datetime_time(11, 0)
+even_time = datetime_time(12, 0)
 curr_time = datetime.datetime.now().time()
 if morn_time <= curr_time < even_time:
     morn_attendance = True
@@ -79,20 +80,26 @@ class Student_data(db.Model):
     def __repr__(self):
         return '<User %r>' % self.username
 
+class Attendance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    start_time = db.Column(db.String(20))
+    end_time = db.Column(db.String(20))
+    date = db.Column(db.Date, default=datetime.date.today)
+    roll_no = db.Column(db.String(20), nullable=False)
+    division = db.Column(db.String(10))
+    branch = db.Column(db.String(100))
+    regid = db.Column(db.String(100))
 
-camera = None  # Global variable to store camera object
 
 # Function to start the camera
-
-
 def start_camera():
     global camera
     camera = cv2.VideoCapture(0)
     # camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
 
+
 # Function to stop the camera
-
-
 def stop_camera():
     global camera
     if camera is not None:
@@ -169,6 +176,32 @@ def eveningattendance(name, current_date):
     cursor.close()
     conn.close()
 
+def mysqlconnect(student_id):
+    
+    # To connect MySQL database
+    conn = pymysql.connect(
+        host='localhost',
+        user='root',
+        password="",
+        db='college',
+    )
+
+    cur = conn.cursor()
+
+    # Select query
+    cur.execute(f"select * from student_data where regid = {student_id}")
+    output = cur.fetchall()
+
+    for i in output:
+        id = i[0]
+        name = i[1]
+        roll_no = i[2]
+        division = i[3]
+        branch = i[4]
+    # To close the connection
+    conn.close()
+    return id, name, roll_no, division, branch
+
 
 def gen_frames():
     global camera
@@ -184,11 +217,11 @@ def gen_frames():
         for encodeFace, faceLoc in zip(encodeCurFrame, faceCurFrame):
             matches, faceDis, matchIndex = compare(encodeListKnown, encodeFace)
             student_id = get_data(matches, matchIndex, studentIds)
-            student_info = student_data.get(student_id, {})
-            name = student_info.get('name', '')
-            roll_no = student_info.get('roll_no', '')
-            div = student_info.get('div', '')
-            branch = student_info.get('Branch', '')
+            data = mysqlconnect(student_id)
+            name = data[1]
+            roll_no = data[2]
+            div = data[3]
+            branch = data[4]
             reg_id = student_id  # Use the same ID as "Reg ID"
             print(name)
             y1, x2, y2, x1 = faceLoc
@@ -355,6 +388,7 @@ def insert_json_to_mysql(host, user, password, database, table, json_directory):
                 (id, name, start_time, end_time, date,
                  roll_no, division, branch, reg_id)
             )
+
 
         # Commit changes and close connection
         con.commit()
