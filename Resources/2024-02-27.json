@@ -1,6 +1,5 @@
 [
     {
-        "id": 1,
         "name": "Parth Narendra Ghadi",
         "start_time": "09:02:45",
         "end_time": "11:46:37",
@@ -11,7 +10,6 @@
         "reg_id": "16122"
     },
     {
-        "id": 2,
         "name": "Rushikesh Sachin Gaikwad",
         "start_time": "09:02:57",
         "end_time": null,
@@ -22,7 +20,6 @@
         "reg_id": "16489"
     },
     {
-        "id": 3,
         "name": "Ishica Binod Kumar",
         "start_time": "14:48:12",
         "end_time": null,
@@ -33,7 +30,6 @@
         "reg_id": "16210"
     },
     {
-        "id": 4,
         "name": "Parth Ghadi",
         "start_time": "17:54:36",
         "end_time": "20:33:59",
@@ -44,7 +40,6 @@
         "reg_id": "16122"
     },
     {
-        "id": 5,
         "name": "Parth Ghadi",
         "start_time": "15:15:08",
         "end_time": null,
@@ -55,7 +50,6 @@
         "reg_id": "16122"
     },
     {
-        "id": 6,
         "name": "Parth Ghadi",
         "start_time": "12:20:46",
         "end_time": null,
@@ -66,7 +60,6 @@
         "reg_id": "16122"
     },
     {
-        "id": 7,
         "name": "Parth Ghadi",
         "start_time": "12:16:23",
         "end_time": null,
@@ -77,7 +70,6 @@
         "reg_id": "16122"
     },
     {
-        "id": 8,
         "name": "Parth Ghadi",
         "start_time": "12:50:56",
         "end_time": null,
@@ -88,7 +80,6 @@
         "reg_id": "16122"
     },
     {
-        "id": 9,
         "name": "",
         "start_time": "16:21:00",
         "end_time": null,
@@ -99,7 +90,6 @@
         "reg_id": "16122"
     },
     {
-        "id": 10,
         "name": "Parth Ghadi",
         "start_time": "20:19:43",
         "end_time": null,
@@ -110,7 +100,6 @@
         "reg_id": "16122"
     },
     {
-        "id": 11,
         "name": "Parth Ghadi",
         "start_time": "12:02:20",
         "end_time": "12:02:56",
@@ -119,5 +108,15 @@
         "division": "TE2",
         "branch": "ECS",
         "reg_id": "16122"
+    },
+    {
+        "name": "Prathmesh",
+        "start_time": "14:44:46",
+        "end_time": null,
+        "date": "2024-02-27",
+        "roll_no": 13,
+        "division": "TE2",
+        "branch": "ECS",
+        "reg_id": "16907"
     }
 ]
