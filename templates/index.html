@@ -5,13 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Face Attendance</title>
-    <link rel="stylesheet" href="../css/style.css">
-    <style>
-        img {
-            float: left;
-            margin-right: 50px;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
 <body>
@@ -49,8 +43,8 @@
         </div>
     </div>
     <button><a href="/data">Form</a></button>
-    <button><a href="/start_camera">Start camera</a></button>
-    <button><a href="/stop_camera">Stop camera</a></button>
+    <button onclick="startCamera()">Start Camera</button>
+    <button onclick="stopCamera()">Stop Camera</button>
 </body>
 
 </html>

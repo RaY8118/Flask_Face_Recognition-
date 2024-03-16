@@ -28,8 +28,9 @@ file.close()
 encodeListKnown, studentIds = encodeListKnownWithIds
 
 recognized_students = set()
-morn_time = datetime_time(13, 0)
-even_time = datetime_time(14, 0)
+morn_time = datetime_time(11, 0)
+even_time = datetime_time(16, 0)
+upload_time = datetime_time(20, 0)
 curr_time = datetime.datetime.now().time()
 if morn_time <= curr_time < even_time:
     morn_attendance = True
@@ -69,8 +70,6 @@ class Student_data(db.Model):
     regid = db.Column(db.String(80), unique=True, nullable=False)
     rollno = db.Column(db.String(120), unique=True, nullable=False)
 
-    def __repr__(self):
-        return '<User %r>' % self.username
 
 class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -81,8 +80,7 @@ class Attendance(db.Model):
     roll_no = db.Column(db.String(20), nullable=False)
     division = db.Column(db.String(10))
     branch = db.Column(db.String(100))
-    regid = db.Column(db.String(100))
-
+    reg_id = db.Column(db.String(100)) 
 
 # Function to start the camera
 def start_camera():
@@ -129,16 +127,15 @@ def morningattendance(name, current_date, roll_no, div, branch, reg_id):
                    (name, current_date))
     existing_entry = cursor.fetchone()
 
-    if not existing_entry:
+    if existing_entry:
+        print("Your Attendance is already recorded before")
+    else:
         # Insert start time and student data into the attendance database
-        cursor.execute("INSERT INTO attendance (name, start_time, date, roll_no, div, branch, reg_id)VALUES"
-                       " (?, ?, ?, ?, ?, ?, ?)",
+        cursor.execute("INSERT INTO attendance (name, start_time, date, roll_no, div, branch, reg_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
                        (name, start_time, current_date, roll_no, div, branch, reg_id))
         conn.commit()
         print("Start time and student data recorded in the database")
-        flash("Your attendance has been recorded", "success")
-    else:
-        print("Your Attendance is already been recorded before")
+
     # Close the cursor and database connection
     cursor.close()
     conn.close()
@@ -168,8 +165,12 @@ def eveningattendance(name, current_date):
     cursor.close()
     conn.close()
 
+
 def mysqlconnect(student_id):
-    
+    # If student_id is None, return None for all values
+    if student_id is None:
+        return None, None, None, None, None
+
     # To connect MySQL database
     conn = pymysql.connect(
         host='localhost',
@@ -180,23 +181,33 @@ def mysqlconnect(student_id):
 
     cur = conn.cursor()
 
-    # Select query
-    cur.execute(f"select * from student_data where regid = {student_id}")
-    output = cur.fetchall()
+    try:
+        # Select query
+        cur.execute("SELECT * FROM student_data WHERE regid = %s",
+                    (student_id,))
+        output = cur.fetchall()
 
-    for i in output:
-        id = i[0]
-        name = i[1]
-        roll_no = i[2]
-        division = i[3]
-        branch = i[4]
-    # To close the connection
-    conn.close()
-    return id, name, roll_no, division, branch
+        for i in output:
+            id = i[0]
+            name = i[1]
+            roll_no = i[2]
+            division = i[3]
+            branch = i[4]
+
+        # To close the connection
+        conn.close()
+        return id, name, roll_no, division, branch
+
+    except Exception as e:
+        print("Error:", e)
+        return None, None, None, None, None
 
 
 def gen_frames():
     global camera
+    global m_attend
+    global e_attend
+
     while camera is not None:
         success, frame = camera.read()
         if not success:
@@ -264,6 +275,7 @@ def display_attendance():
         return data
 
     except Exception as e:
+        # Return a more informative error message or handle specific exceptions
         return str(e)
 
 
@@ -299,13 +311,14 @@ def add_user():
 
 
 def convert_sqlite_to_json(database_path, table_name, output_directory):
+    cur_date = datetime.datetime.now().date()
     # Connect to the SQLite database
     conn = sqlite3.connect(database_path)
     cursor = conn.cursor()
 
     try:
         # Execute a query to select data from the specified table
-        cursor.execute(f'SELECT * FROM {table_name}')
+        cursor.execute(f"SELECT * FROM {table_name} where date = '{cur_date}'")
         rows = cursor.fetchall()
 
         # Convert the rows to a list of dictionaries
@@ -316,10 +329,10 @@ def convert_sqlite_to_json(database_path, table_name, output_directory):
                 "start_time": row[2],
                 "end_time": row[3],
                 "date": row[4],
-                "roll_no": row[5], 
+                "roll_no": row[5],
                 "division": row[6],
                 "branch": row[7],
-                "reg_id": row[8] 
+                "reg_id": row[8]
             }
             data.append(row_dict)
 
@@ -381,7 +394,6 @@ def insert_json_to_mysql(host, user, password, database, table, json_directory):
                  roll_no, division, branch, reg_id)
             )
 
-
         # Commit changes and close connection
         con.commit()
         con.close()
@@ -391,13 +403,31 @@ def insert_json_to_mysql(host, user, password, database, table, json_directory):
     except Exception as e:
         print(f"Error: {e}")
 
+
 excuted = False
-if curr_time > even_time and not excuted:
+if curr_time > upload_time and not excuted:
     convert_sqlite_to_json(
-        'Database/attendance_database.db', 'attendance', 'Resources')
+        'Database/attendance_database.db', 'attendance', 'Backup')
     insert_json_to_mysql("localhost", "root", "", "college",
-                     "attendance", "Resources")
+                         "attendance", "Backup")
     excuted = True
+
+@app.route('/get_attendance', methods=['GET'])
+def get_attendance():
+    query_parameters = {}
+    for key, value in request.args.items():
+        if value:
+            query_parameters[key] = value
+    
+    if query_parameters:
+        attendance_records = Attendance.query.filter_by(**query_parameters).all()
+        if not attendance_records:
+            flash("No records available for the specified criteria")
+    else:
+        flash("No parameters provided for query")
+        attendance_records = []  # Assign an empty list to avoid undefined variable error
+    
+    return render_template('results.html', attendance_records=attendance_records)
 
 
 @app.route('/')

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Query Interface</title>
+</head>
+<body>
+    <h1>Attendance Query</h1>
+    <form action="/get_attendance" method="GET">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name">
+        <br>
+        <label for="start_time">Start Time:</label>
+        <input type="text" id="start_time" name="start_time">
+        <br>
+        <label for="end_time">End Time:</label>
+        <input type="text" id="end_time" name="end_time">
+        <br>
+        <label for="date">Date:</label>
+        <input type="date" id="date" name="date">
+        <br>
+        <label for="roll_no">Roll Number:</label>
+        <input type="text" id="roll_no" name="roll_no">
+        <br>
+        <label for="division">Division:</label>
+        <input type="text" id="division" name="division">
+        <br>
+        <label for="branch">Branch:</label>
+        <input type="text" id="branch" name="branch">
+        <br>
+        <label for="reg_id">Reg ID:</label>
+        <input type="text" id="reg_id" name="reg_id">
+        <br>
+        <button type="submit">Submit</button>
+    </form>
+    <div id="results">
+        <h1>Attendance Results</h1>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <ul>
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Roll Number</th>
+                    <th>Division</th>
+                    <th>Branch</th>
+                    <th>Reg ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in attendance_records %}
+                <tr>
+                    <td>{{ record.name }}</td>
+                    <td>{{ record.start_time }}</td>
+                    <td>{{ record.end_time }}</td>
+                    <td>{{ record.roll_no }}</td>
+                    <td>{{ record.division }}</td>
+                    <td>{{ record.branch }}</td>
+                    <td>{{ record.reg_id }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
