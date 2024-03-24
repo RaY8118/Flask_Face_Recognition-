@@ -12,39 +12,9 @@
     <h1>Face Attendance </h1>
     <div>
         <img src="{{ url_for('video') }}" width="50%" id="webcam">
-        <div>
-            <h2>Attendance Data</h2>
-            <table border="1">
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Start Time</th>
-                    <th>End Time</th>
-                    <th>Date</th>
-                    <th>Roll No</th>
-                    <th>Division</th>
-                    <th>Branch</th>
-                    <th>Reg ID</th>
-                </tr>
-                {% for row in data %}
-                <tr>
-                    <td>{{ row[0] }}</td>
-                    <td>{{ row[1] }}</td>
-                    <td>{{ row[2] }}</td>
-                    <td>{{ row[3] }}</td>
-                    <td>{{ row[4] }}</td>
-                    <td>{{ row[5] }}</td>
-                    <td>{{ row[6] }}</td>
-                    <td>{{ row[7] }}</td>
-                    <td>{{ row[8] }}</td>
-                </tr>
-                {% endfor %}
-            </table>
-        </div>
     </div>
     <button><a href="/data">Form</a></button>
-    <button onclick="startCamera()">Start Camera</button>
-    <button onclick="stopCamera()">Stop Camera</button>
+    <button><a href="/display_attendance">Display Attendance</a></button>
 </body>
 
 </html>

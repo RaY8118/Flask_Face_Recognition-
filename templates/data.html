@@ -2,40 +2,42 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Student Data</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <title>Add Student Data</title>
 </head>
 
 <body>
-    <h1>Add Student Data</h1>
+  <h1>Add Student Data</h1>
 
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <ul class="flash-messages">
-          {% for message in messages %}
-            <li>{{ message }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% endwith %}
-
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}
+  <ul class="flash-messages">
+    {% for message in messages %}
+    <li>{{ message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% endwith %}
+  <div class="data_form">
     <form action="/add_user" method="post" enctype="multipart/form-data">
-        <label for="name">Name: </label>
-        <input type="text" name="name" id="name"><br><br>
-        <label for="branch">Branch: </label>
-        <input type="text" name="branch" id="branch"><br><br>
-        <label for="division">Division: </label>
-        <input type="text" name="division" id="division"><br><br>
-        <label for="rollno">Roll no: </label>
-        <input type="number" name="rollno" id="rollno"><br><br>
-        <label for="regid">Register ID: </label>
-        <input type="number" name="regid" id="regid"><br><br>
-        <label for="img">Image Upload</label>
-        
-        <input type="submit" value="Submit">
+      <label for="name">Name: </label>
+      <input type="text" name="name" id="name"><br><br>
+      <label for="branch">Branch: </label>
+      <input type="text" name="branch" id="branch"><br><br>
+      <label for="division">Division: </label>
+      <input type="text" name="division" id="division"><br><br>
+      <label for="rollno">Roll no: </label>
+      <input type="number" name="rollno" id="rollno"><br><br>
+      <label for="regid">Register ID: </label>
+      <input type="number" name="regid" id="regid"><br><br>
+      <label for="img">Image Upload</label>
+
+      <input type="submit" value="Submit">
     </form>
-    <button><a href="/">Back</a></button>
+  </div>
+  <button><a href="/">Back</a></button>
 </body>
 
 </html>

@@ -4,6 +4,8 @@ import pickle
 import numpy as np
 import face_recognition
 import cvzone
+import sqlite3
+import json
 import datetime
 from datetime import time as datetime_time
 import time
@@ -27,14 +29,38 @@ encodeListKnown, studentIds = encodeListKnownWithIds
 
 recognized_students = set()
 morn_time = datetime_time(11, 0)
-even_time = datetime_time(16, 0)
+even_time = datetime_time(11, 20)
+upload_time = datetime_time(23, 0)
 curr_time = datetime.datetime.now().time()
+data = []
 if morn_time <= curr_time < even_time:
     morn_attendance = True
     even_attendance = False
 else:
     even_attendance = True
     morn_attendance = False
+
+# # Connect to an SQLite database
+# conn = sqlite3.connect('Database/attendance_database.db')
+
+# # Create a cursor object
+# cursor = conn.cursor()
+
+# # Create a table in the database if it doesn't exist
+# cursor.execute('''
+#     CREATE TABLE IF NOT EXISTS attendance (
+#         id INTEGER PRIMARY KEY,
+#         name TEXT,
+#         start_time TEXT,
+#         end_time TEXT,
+#         date DATE,
+#         roll_no INTEGER,
+#         div TEXT,
+#         branch TEXT,
+#         reg_id TEXT
+#     )
+# ''')
+
 
 class Student_data(db.Model):
     __tablename__ = 'student_data'
@@ -59,6 +85,8 @@ class Attendance(db.Model):
     reg_id = db.Column(db.String(100))
 
 # Function to start the camera
+
+
 def start_camera():
     global camera
     camera = cv2.VideoCapture(0)
@@ -299,6 +327,109 @@ def add_user():
         db.session.commit()
         flash('Student added successfully!', 'success')
         return redirect(url_for('data'))
+
+
+def convert_sqlite_to_json(database_path, table_name, output_directory):
+    cur_date = datetime.datetime.now().date()
+    # Connect to the SQLite database
+    conn = sqlite3.connect(database_path)
+    cursor = conn.cursor()
+
+    try:
+        # Execute a query to select data from the specified table
+        cursor.execute(f"SELECT * FROM {table_name} where date = '{cur_date}'")
+        rows = cursor.fetchall()
+
+        # Convert the rows to a list of dictionaries
+        data = []
+        for row in rows:
+            row_dict = {
+                "name": row[1],
+                "start_time": row[2],
+                "end_time": row[3],
+                "date": row[4],
+                "roll_no": row[5],
+                "division": row[6],
+                "branch": row[7],
+                "reg_id": row[8]
+            }
+            data.append(row_dict)
+
+        # Generate output filename based on today's date
+        today_date = datetime.datetime.now().date()
+        output_file = f'{output_directory}/{today_date}.json'
+        if os.path.exists(output_file):
+            print(f"File '{output_file}' already exists ")
+        else:
+            # Write the data to the JSON file
+            with open(output_file, 'w') as f:
+                json.dump(data, f, indent=4)
+
+        print(
+            f"Data from table '{table_name}' in '{database_path}' successfully exported to '{output_file}'.")
+
+    except sqlite3.Error as e:
+        print(f"Error: {e}")
+
+    finally:
+        # Close the connection
+        conn.close()
+
+
+def insert_json_to_mysql(host, user, password, database, table, json_directory):
+    try:
+        # Get today's date
+        today_date = datetime.datetime.now().date()
+
+        # Construct the JSON file path with today's date
+        json_file = f"{json_directory}/{today_date}.json"
+
+        # Read JSON data from file
+        with open(json_file) as f:
+            json_data = f.read()
+
+        # Load JSON data into Python object
+        json_obj = json.loads(json_data)
+
+        # Connect to MySQL database
+        con = pymysql.connect(host=host, user=user,
+                              password=password, db=database)
+        cursor = con.cursor()
+
+        # Iterate over JSON objects and insert into MySQL table
+        for item in json_obj:
+            name = item.get("name")
+            start_time = item.get("start_time")
+            end_time = item.get("end_time")
+            date = item.get("date")
+            roll_no = item.get("roll_no")
+            division = item.get("division")
+            branch = item.get("branch")
+            reg_id = item.get("reg_id")
+
+            cursor.execute(
+                f"INSERT INTO {table} ( name, start_time, end_time, date, roll_no, division, branch, reg_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (name, start_time, end_time, date,
+                 roll_no, division, branch, reg_id)
+            )
+
+        # Commit changes and close connection
+        con.commit()
+        con.close()
+
+        print("Data successfully inserted into MySQL table.")
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+excuted = False
+if curr_time > upload_time and not excuted:
+    convert_sqlite_to_json(
+        'Database/attendance_database.db', 'attendance', 'Backup')
+    insert_json_to_mysql("localhost", "root", "", "college",
+                         "attendance", "Backup")
+    excuted = True
 
 
 @app.route('/get_attendance', methods=['GET'])

@@ -63,3 +63,8 @@ button a {
     color: #fff;
     text-decoration: none;
 }
+.data_form{
+    color: red;
+    padding: 20px;
+    background-color: pink;
+}
