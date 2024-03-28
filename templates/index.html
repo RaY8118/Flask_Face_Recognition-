@@ -10,11 +10,19 @@
 
 <body>
     <h1>Face Attendance </h1>
-    <div>
+    <div class="container">
         <img src="{{ url_for('video') }}" width="50%" id="webcam">
     </div>
-    <button><a href="/data">Form</a></button>
-    <button><a href="/display_attendance">Display Attendance</a></button>
+    <div>
+        <a href="/" onclick="reloadPage()">Go to Index</a>
+
+    <script>
+        function reloadPage() {
+            location.reload();
+        }
+    </script>
+    </div>
+
 </body>
 
 </html>

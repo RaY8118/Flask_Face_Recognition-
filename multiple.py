@@ -26,11 +26,13 @@ encodeListKnown, studentIds = encodeListKnownWithIds
 # Define multiple video sources (replace these with your actual video sources)
 video_sources = [
     0,
-    'http://192.168.0.102:8080/video'
+    'http://192.168.254.37:8080/video'
 ]
 current_source_index = 0  # Index of the currently selected video source
 
 # Function to switch between video sources
+
+
 def switch_video_source():
     global current_source_index
     current_source_index = (current_source_index + 1) % len(video_sources)
@@ -50,6 +52,7 @@ def get_data(matches, matchIndex, studentIds):
         student_id = studentIds[matchIndex]  # ID from face recognition
         return student_id
     return None  # Return None if no match found
+
 
 def mysqlconnect(student_id):
     # If student_id is None, return None for all values
@@ -86,8 +89,8 @@ def mysqlconnect(student_id):
     except Exception as e:
         print("Error:", e)
         return None, None, None, None, None
-    
-    
+
+
 # Function to generate video frames from the current video source
 def gen_frames():
     # Open video stream from the current video source
@@ -125,18 +128,22 @@ def gen_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
+
 @app.route('/video_feed')
 def video_feed():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
 
 @app.route('/switch_video', methods=['POST'])
 def switch_video():
     switch_video_source()
     return 'Switched video source successfully'
 
+
 @app.route('/')
 def index():
     return render_template('multiple.html')
 
+
 if __name__ == '__main__':
-    app.run(debug=True, host='192.168.0.103')
+    app.run(debug=True , host='192.168.254.176')

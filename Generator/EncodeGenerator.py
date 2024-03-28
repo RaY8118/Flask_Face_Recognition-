@@ -4,7 +4,7 @@ import pickle
 import os
 
 # Importing the student images
-folderPath = '../images'
+folderPath = 'uploads'
 pathList = os.listdir(folderPath)
 print(pathList)
 imgList = []
@@ -29,7 +29,7 @@ print("Encoding started......")
 encodeListKnown = findEncodings(imgList)
 encodeListKnownWithIds = [encodeListKnown, studentIds]
 print("Encoding complete")
-file = open("../Resources/EncodeFile.p", 'wb')
+file = open("Resources/EncodeFile.p", 'wb')
 pickle.dump(encodeListKnownWithIds, file)
 file.close()
 print("File Saved")

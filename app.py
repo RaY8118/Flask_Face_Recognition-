@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, flash, request, redirect, url_for
+from flask import Flask, render_template, Response, flash, request, redirect, url_for, session,make_response
 import cv2
 import pickle
 import numpy as np
@@ -10,24 +10,33 @@ import time
 import threading
 import os
 from flask_sqlalchemy import SQLAlchemy
-import pymysql
+from werkzeug.utils import secure_filename
+import csv
+import pandas as pd
+import io
+import logging
+import json
 
 
+with open('config.json') as p:
+    params = json.load(p)['params']
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'abc'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@localhost/college'
+app.config['SQLALCHEMY_DATABASE_URI'] = params['sql_url']
 db = SQLAlchemy(app)
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 camera = None  # Global variable to store camera object
-camera = cv2.VideoCapture(0)
-# camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
 file = open('Resources/EncodeFile.p', 'rb')
 encodeListKnownWithIds = pickle.load(file)
 file.close()
 encodeListKnown, studentIds = encodeListKnownWithIds
 
 recognized_students = set()
-morn_time = datetime_time(11, 0)
-even_time = datetime_time(16, 0)
+morn_time = datetime_time(int(params['morning_time']))
+even_time = datetime_time(int(params['evening_time']))
+print(morn_time)
 curr_time = datetime.datetime.now().time()
 if morn_time <= curr_time < even_time:
     morn_attendance = True
@@ -35,6 +44,7 @@ if morn_time <= curr_time < even_time:
 else:
     even_attendance = True
     morn_attendance = False
+
 
 class Student_data(db.Model):
     __tablename__ = 'student_data'
@@ -58,11 +68,35 @@ class Attendance(db.Model):
     branch = db.Column(db.String(100))
     reg_id = db.Column(db.String(100))
 
+
+class Users(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(100), unique=True)
+    reg_id = db.Column(db.Integer, unique=True)
+    psw = db.Column(db.String(128))
+    role = db.Column(db.String(100), unique=True)
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
 # Function to start the camera
 def start_camera():
     global camera
-    camera = cv2.VideoCapture(0)
-    # camera = cv2.VideoCapture('http://192.168.0.100:8080/video')
+
+    if params['camera_type'] == 'webcam':
+        camera_index = params['camera_index']
+        camera = cv2.VideoCapture(camera_index)
+        host = '127.0.0.1' 
+    elif params['camera_type'] == 'ip_camera':
+        ip_camera_url = params['ip_camera_url']
+        camera = cv2.VideoCapture(ip_camera_url)
+        host = params['host']  # Set host to the value specified in the config file for IP camera
+    else:
+        raise ValueError("Invalid camera type specified in config.json")
+
+    return host
 
 
 # Function to stop the camera
@@ -91,67 +125,51 @@ def get_data(matches, matchIndex, studentIds):
 
 def morningattendance(name, current_date, roll_no, div, branch, reg_id):
     time.sleep(2)
-    # Connect to the SQLite database
-    conn = pymysql.connect(
-        host='localhost',
-        user='root',
-        password="",
-        db='college',
-    )
+    try:
+        with app.app_context():
+            existing_entry = Attendance.query.filter(
+                Attendance.name == name,
+                Attendance.date == current_date,
+                Attendance.start_time != None
+            ).first()
 
-    cursor = conn.cursor()
-    # Record start time and date
-    start_time = datetime.datetime.now().strftime("%H:%M:%S")
-    print("Start time:", start_time)
-
-    # Check if an entry for the person, date, and start time already exists in the database
-    cursor.execute("SELECT * FROM attendance WHERE name = %s AND date = %s AND start_time IS NOT NULL",
-                   (name, current_date))
-    existing_entry = cursor.fetchone()
-
-    if existing_entry:
-        print("Your Attendance is already recorded before")
-    else:
-        # Insert start time and student data into the attendance database
-        cursor.execute("INSERT INTO attendance (name, start_time, date, roll_no, division, branch, reg_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                       (name, start_time, current_date, roll_no, div, branch, reg_id))
-        conn.commit()
-        print("Start time and student data recorded in the database")
-
-    # Close the cursor and database connection
-    cursor.close()
-    conn.close()
+            if existing_entry:
+                print("Your Attendance is already recorded before")
+            else:
+                new_attendance = Attendance(
+                    name=name,
+                    start_time=datetime.datetime.now().strftime("%H:%M:%S"),
+                    date=current_date,
+                    roll_no=roll_no,
+                    division=div,
+                    branch=branch,
+                    reg_id=reg_id
+                )
+                db.session.add(new_attendance)
+                db.session.commit()
+                print("Start time and student data recorded in the database")
+    except Exception as e:
+        print("Error:", e)
 
 
 def eveningattendance(name, current_date):
     time.sleep(2)
-    # Connect to the SQLite database
-    conn = pymysql.connect(
-        host='localhost',
-        user='root',
-        password="",
-        db='college',
-    )
+    try:
+        with app.app_context():
+            existing_entry = Attendance.query.filter(
+                Attendance.name == name,
+                Attendance.date == current_date,
+                Attendance.start_time != None
+            ).first()
 
-    cursor = conn.cursor()
-    # Record end time and date
-    end_time = datetime.datetime.now().strftime("%H:%M:%S")
-    print("End time:", end_time)
-
-    # Check if an entry for the person, date, and end time already exists in the database
-    cursor.execute("SELECT * FROM attendance WHERE name = %s AND date = %s AND end_time IS NOT NULL",
-                   (name, current_date))
-    existing_entry = cursor.fetchone()
-
-    if not existing_entry:
-        # Update the entry with end time
-        cursor.execute("UPDATE attendance SET end_time = %s WHERE name = %s AND date = %s",
-                       (end_time, name, current_date))
-        conn.commit()
-        print("End time recorded in the database")
-    # Close the cursor and database connection
-    cursor.close()
-    conn.close()
+            if existing_entry:
+                existing_entry.end_time = datetime.datetime.now().strftime("%H:%M:%S")
+                db.session.commit()
+                print("End time recorded in the database")
+            else:
+                print("No existing entry found for evening attendance")
+    except Exception as e:
+        print("Error:", e)
 
 
 def mysqlconnect(student_id):
@@ -159,31 +177,24 @@ def mysqlconnect(student_id):
     if student_id is None:
         return None, None, None, None, None
 
-    # To connect MySQL database
-    conn = pymysql.connect(
-        host='localhost',
-        user='root',
-        password="",
-        db='college',
-    )
-
-    cur = conn.cursor()
-
     try:
-        # Select query
-        cur.execute("SELECT * FROM student_data WHERE regid = %s",
-                    (student_id,))
-        output = cur.fetchall()
-        for i in output:
-            id = i[0]
-            name = i[1]
-            roll_no = i[2]
-            division = i[3]
-            branch = i[4]
+        with app.app_context():
+            # Query student data using SQLAlchemy
+            student_data = Student_data.query.filter_by(
+                regid=student_id).first()
 
-        # To close the connection
-        conn.close()
-        return id, name, roll_no, division, branch
+            if student_data:
+                # If student data is found, extract values
+                id = student_data.id
+                name = student_data.name
+                roll_no = student_data.rollno
+                division = student_data.division
+                branch = student_data.branch
+
+                return id, name, roll_no, division, branch
+            else:
+                # If no student is found, return None for all values
+                return None, None, None, None, None
 
     except Exception as e:
         print("Error:", e)
@@ -202,7 +213,7 @@ def gen_frames():
         encodeCurFrame = face_recognition.face_encodings(imgS, faceCurFrame)
 
         for encodeFace, faceLoc in zip(encodeCurFrame, faceCurFrame):
-            matches, faceDis, matchIndex = compare(encodeListKnown, encodeFace)
+            matches, facedis, matchIndex = compare(encodeListKnown, encodeFace)
             student_id = get_data(matches, matchIndex, studentIds)
             data = mysqlconnect(student_id)
             name = data[1]
@@ -242,32 +253,17 @@ def video():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame', content_type='multipart/x-mixed-replace; boundary=frame')
 
 
+@app.route('/display_attendance', methods=['GET'])
 def display_attendance():
     stop_camera()
     try:
-        conn = pymysql.connect(
-            host='localhost',
-            user='root',
-            password="",
-            db='college',
-        )
-
-        cur = conn.cursor()
-        # Select query
-        cur.execute("SELECT * FROM attendance")
-        data = cur.fetchall()
-        conn.close()
-        return data
-
+        current_date = datetime.datetime.now().date()
+        print(current_date)
+        data = Attendance.query.filter_by(date=current_date).all()
+        return render_template('display_data.html', data=data, current_date=current_date)
     except Exception as e:
         # Return a more informative error message or handle specific exceptions
         return str(e)
-
-
-@app.route('/display_attendance')
-def display():
-    data = display_attendance()
-    return render_template('display_data.html', data=data)
 
 
 @app.route('/data')
@@ -281,8 +277,8 @@ def add_user():
     name = request.form['name']
     branch = request.form['branch']
     division = request.form['division']
-    regid = request.form['regid']
-    rollno = request.form['rollno']
+    regid = request.form['reg_id']
+    rollno = request.form['roll_no']
 
     # Check if a student with the same name already exists
     existing_student = Student_data.query.filter_by(name=name).first()
@@ -292,13 +288,37 @@ def add_user():
         flash('Student already exists!', 'error')
         return redirect(url_for('data'))
     else:
-        # Student does not exist, proceed to add the new student
-        user = Student_data(name=name, rollno=rollno, division=division,
-                            branch=branch, regid=regid)
-        db.session.add(user)
-        db.session.commit()
-        flash('Student added successfully!', 'success')
-        return redirect(url_for('data'))
+        # Check if the post request has the file part
+        if 'image' not in request.files:
+            flash('No file part')
+            return redirect(request.url)
+
+        file = request.files['image']
+
+        # If the user does not select a file, the browser submits an empty file without a filename
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+
+        # Check if the file extension is allowed
+        if file and allowed_file(file.filename):
+            # Secure the filename to prevent any malicious activity
+            filename = secure_filename(
+                regid + '.' + file.filename.rsplit('.', 1)[1].lower())
+            # Save the file to the upload folder
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+            # Proceed to add the new student
+            user = Student_data(name=name, rollno=rollno,
+                                division=division, branch=branch, regid=regid)
+            db.session.add(user)
+            db.session.commit()
+            flash('Student added successfully!', 'success')
+            return redirect(url_for('data'))
+        else:
+            flash(
+                'Invalid file extension. Allowed extensions are: png, jpg, jpeg, gif', 'error')
+            return redirect(request.url)
 
 
 @app.route('/get_attendance', methods=['GET'])
@@ -321,6 +341,123 @@ def get_attendance():
     return render_template('results.html', attendance_records=attendance_records)
 
 
+@app.route('/download_attendance_csv', methods=['POST'])
+def download_attendance_csv():
+    try:
+        # Assuming the date is submitted via a form
+        date = request.form.get('date')
+        print(date)
+        if not date:
+            flash("Date not provided for downloading.")
+            return redirect(url_for('get_attendance'))
+
+        # Retrieve attendance records for the specified date
+        attendance_records = Attendance.query.filter_by(date=date).all()
+
+        if not attendance_records:
+            flash("No attendance records found for the specified date.")
+            return redirect(url_for('get_attendance'))
+
+        # Create a CSV string
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Name', 'Start Time', 'End Time', 'Date',
+                        'Roll Number', 'Division', 'Branch', 'Registration ID'])
+        for record in attendance_records:
+            writer.writerow([record.name, record.start_time, record.end_time, record.date,
+                            record.roll_no, record.division, record.branch, record.reg_id])
+
+        # Create response
+        response = make_response(output.getvalue())
+        filename = f"attendance_records_{date}.csv"
+        response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+        response.headers["Content-type"] = "text/csv"
+
+        return response
+    except Exception as e:
+        logging.exception(
+            "Error occurred while generating CSV file: %s", str(e))
+        flash("An error occurred while generating CSV file.")
+        return redirect(url_for('get_attendance'))
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    stop_camera()
+    error = None  # Initialize error variable
+    if request.method == 'POST':
+        username = request.form['username']
+        reg_id = request.form['reg_id']
+        password = request.form['password']
+        role = request.form['role']
+        # Check if username or reg_id already exists
+        existing_user = Users.query.filter_by(username=username).first()
+        existing_reg_id = Users.query.filter_by(reg_id=reg_id).first()
+
+        if existing_user:
+            error = 'Username already exists!'
+        elif existing_reg_id:
+            error = 'Registration ID already exists!'
+        else:
+            # Create new user
+            new_user = Users(username=username, reg_id=reg_id,
+                             psw=password, role=role)
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Registration successful!', 'success')
+            return redirect(url_for('login'))
+
+    # Pass error variable to template
+    return render_template('register.html', error=error)
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    stop_camera()
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        # Fetch user from the database based on the provided username and password
+        user = Users.query.filter_by(username=username, psw=password).first()
+        print(user)
+
+        # Check if a user with the provided credentials exists
+        if user:
+            # Set session variables to track the logged-in user
+            session['user_id'] = user.id
+            session['username'] = user.username
+            # Assuming there's a 'role' attribute for the user
+            session['role'] = user.role
+            print(session['role'])
+
+            # Redirect based on the user's role
+            if user.role == 'admin':
+                return redirect(url_for('data'))
+            elif user.role == 'teacher':
+                return redirect(url_for('get_attendance'))
+            elif user.role == 'student':
+                return redirect(url_for('display_attendance'))
+            else:
+                pass
+
+    # Render the login page for GET requests
+    return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    # Clear the session variables
+    session.clear()
+    # Redirect to the login page
+    return redirect(url_for('login'))
+
+# @app.route('/camera')
+# def camera():
+#     start_camera()
+#     return render_template('camera.html')
+
+
 @app.route('/')
 def index():
     start_camera()
@@ -328,4 +465,6 @@ def index():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    host = start_camera()  # Determine the camera type and get the host value
+    app.run(debug=True, host=host)
+

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Page</title>
+</head>
+
+<body>
+    <h1>Register Page</h1>
+    <a href="{{'login'}}">Already have a account! Login here</a>
+    <form action="/register" method="post" enctype="multipart/form-data">
+        <label for="username">Username: </label>
+        <input type="text" name="username" id="username"><br><br>
+        <label for="reg_id">Registeration ID: </label>
+        <input type="text" name="reg_id" , id="reg_id"><br><br>
+        <label for="password">Password: </label>
+        <input type="password" name="password" id="password"><br><br>
+        <label for="role">Role: </label>
+        <select name="role" id="role">
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+            <option value="admin">Admin</option>
+        </select>
+        <input type="submit" value="Submit">
+    </form>
+    {%if error%}
+    <p class="error">{{error}}</p>
+    {%endif%}
+    <a href="/" onclick="reloadPage()">Go to Index</a>
+
+    <script>
+        function reloadPage() {
+            location.reload();
+        }
+    </script>
+</body>
+
+</html>
