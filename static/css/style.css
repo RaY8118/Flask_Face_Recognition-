@@ -15,7 +15,14 @@ body {
     border-radius: 10px;
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
 }
-
+.login_form {
+    width: 30%;
+    margin: 50px auto;
+    padding: 30px;
+    background-color: rgb(211, 228, 247);
+    border-radius: 10px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+}
 h1 {
     font-family:Helvetica;
     text-align: center;
@@ -37,7 +44,9 @@ label {
 }
 
 input[type="text"],
-input[type="file"] {
+input[type="file"],
+input[type="password"],
+select {
     width: calc(100% - 20px);
     padding: 10px;
     border: 1px solid #ccc;

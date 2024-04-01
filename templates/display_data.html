@@ -6,17 +6,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <title>Attendance Data</title>
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .button-group {
+            margin-top: 20px;
+        }
+
+        .button-group button {
+            margin-left: 10px;
+        }
+    </style>
 </head>
 
 <body>
     <div class="container">
         <h1>Attendance Data</h1>
         <h2>Attendance for date {{ current_date }}</h2>
-        <style>
-            h1 {
-                font-weight: bold;
-            }
-        </style>
         <table>
             <thead>
                 <tr>
@@ -47,14 +57,17 @@
                 {% endfor %}
             </tbody>
         </table>
-        <div>
+        <div class="button-group">
             <a href="/" onclick="reloadPage()">Go to Index</a>
-            <a href="/logout">Logout</a>
+            <button type="submit" onclick="logout()">Logout</button>
         </div>
     </div>
     <script>
         function reloadPage() {
             location.reload();
+        }
+        function logout() {
+            window.location.href = "{{ url_for('logout') }}";
         }
     </script>
 </body>

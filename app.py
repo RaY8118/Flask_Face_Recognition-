@@ -12,32 +12,39 @@ import os
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 import csv
-import pandas as pd
 import io
 import logging
 import json
 
 
+# Opening all the necessary files needed 
 with open('config.json') as p:
     params = json.load(p)['params']
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'abc'
-app.config['SQLALCHEMY_DATABASE_URI'] = params['sql_url']
-db = SQLAlchemy(app)
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-camera = None  # Global variable to store camera object
 file = open('Resources/EncodeFile.p', 'rb')
 encodeListKnownWithIds = pickle.load(file)
 file.close()
 encodeListKnown, studentIds = encodeListKnownWithIds
 
+
+# App configs   
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'abc'
+app.config['SQLALCHEMY_DATABASE_URI'] = params['sql_url']
+db = SQLAlchemy(app)
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg',}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+
+# Variables defined 
+camera = None  # Global variable to store camera object
 recognized_students = set()
 morn_time = datetime_time(int(params['morning_time']))
 even_time = datetime_time(int(params['evening_time']))
-print(morn_time)
 curr_time = datetime.datetime.now().time()
+
+
+# Logic to find what function to call based on the time of day for marking the attendance
 if morn_time <= curr_time < even_time:
     morn_attendance = True
     even_attendance = False
@@ -46,6 +53,12 @@ else:
     morn_attendance = False
 
 
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+# Models used to connect in SQL Alchemy
+# Model of students data table 
 class Student_data(db.Model):
     __tablename__ = 'student_data'
     id = db.Column(db.Integer, primary_key=True)
@@ -56,6 +69,7 @@ class Student_data(db.Model):
     rollno = db.Column(db.String(120), unique=True, nullable=False)
 
 
+# Model of Attendance table 
 class Attendance(db.Model):
     __tablename__ = 'attendance'
     id = db.Column(db.Integer, primary_key=True)
@@ -69,6 +83,7 @@ class Attendance(db.Model):
     reg_id = db.Column(db.String(100))
 
 
+# Model of users table 
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True)
@@ -77,26 +92,35 @@ class Users(db.Model):
     role = db.Column(db.String(100), unique=True)
 
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
 # Function to start the camera
 def start_camera():
     global camera
 
     if params['camera_type'] == 'webcam':
         camera_index = params['camera_index']
+        print("Using webcam at index:", camera_index)
         camera = cv2.VideoCapture(camera_index)
-        host = '127.0.0.1' 
+        print("Camera:", camera)
+        #host = '127.0.0.1' 
+        host = params['host']
     elif params['camera_type'] == 'ip_camera':
         ip_camera_url = params['ip_camera_url']
+        print("Using IP camera with URL:", ip_camera_url)
         camera = cv2.VideoCapture(ip_camera_url)
+        print("Camera:", camera)
         host = params['host']  # Set host to the value specified in the config file for IP camera
+    elif params['camera_type'] == 'usb_cam':
+        usb_camera_index = int(params['usb_index'])
+        print("Using USB camera at index:", usb_camera_index)
+        camera = cv2.VideoCapture(usb_camera_index)
+        print("Camera:", camera)
+        #host = '127.0.0.1'
+        host = params['host']
     else:
         raise ValueError("Invalid camera type specified in config.json")
 
     return host
+
 
 
 # Function to stop the camera
@@ -107,6 +131,7 @@ def stop_camera():
         camera = None
 
 
+# Function for comparing incoming face with encoded file
 def compare(encodeListKnown, encodeFace):
     matches = face_recognition.compare_faces(encodeListKnown, encodeFace)
     faceDis = face_recognition.face_distance(encodeListKnown, encodeFace)
@@ -116,6 +141,7 @@ def compare(encodeListKnown, encodeFace):
     return matches, faceDis, matchIndex
 
 
+# Function to get name of student from the index given by comparing function
 def get_data(matches, matchIndex, studentIds):
     if matches[matchIndex]:
         student_id = studentIds[matchIndex]  # ID from face recognition
@@ -123,6 +149,7 @@ def get_data(matches, matchIndex, studentIds):
     return None  # Return None if no match found
 
 
+# Function which writes the morning attendance in the database
 def morningattendance(name, current_date, roll_no, div, branch, reg_id):
     time.sleep(2)
     try:
@@ -152,6 +179,7 @@ def morningattendance(name, current_date, roll_no, div, branch, reg_id):
         print("Error:", e)
 
 
+# Function which writes the evening attendance in the database
 def eveningattendance(name, current_date):
     time.sleep(2)
     try:
@@ -172,6 +200,7 @@ def eveningattendance(name, current_date):
         print("Error:", e)
 
 
+# Function which gets data of identified student from the database
 def mysqlconnect(student_id):
     # If student_id is None, return None for all values
     if student_id is None:
@@ -201,6 +230,7 @@ def mysqlconnect(student_id):
         return None, None, None, None, None
 
 
+# Function which does the face recognition and displaying the video feed
 def gen_frames():
     global camera
     while camera is not None:
@@ -248,11 +278,13 @@ def gen_frames():
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 
+# Route of video feed to flask webpage on index page
 @app.route('/video')
 def video():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame', content_type='multipart/x-mixed-replace; boundary=frame')
 
 
+# Route which displays the attendance of all student for that current day
 @app.route('/display_attendance', methods=['GET'])
 def display_attendance():
     stop_camera()
@@ -266,6 +298,7 @@ def display_attendance():
         return str(e)
 
 
+# Route to add new studnets page for admins
 @app.route('/data')
 def data():
     stop_camera()
@@ -321,6 +354,7 @@ def add_user():
             return redirect(request.url)
 
 
+# Route for querying the attendace based on filters given for teachers 
 @app.route('/get_attendance', methods=['GET'])
 def get_attendance():
     stop_camera()
@@ -341,6 +375,7 @@ def get_attendance():
     return render_template('results.html', attendance_records=attendance_records)
 
 
+# Function to download the attendance of particular date in cvs format
 @app.route('/download_attendance_csv', methods=['POST'])
 def download_attendance_csv():
     try:
@@ -381,6 +416,7 @@ def download_attendance_csv():
         return redirect(url_for('get_attendance'))
 
 
+# Route to registration page for viewing the attendance
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     stop_camera()
@@ -411,6 +447,7 @@ def register():
     return render_template('register.html', error=error)
 
 
+# Route to login page 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     stop_camera()
@@ -445,6 +482,7 @@ def login():
     return render_template('login.html')
 
 
+# Function for logout functionality 
 @app.route('/logout')
 def logout():
     # Clear the session variables
@@ -452,18 +490,15 @@ def logout():
     # Redirect to the login page
     return redirect(url_for('login'))
 
-# @app.route('/camera')
-# def camera():
-#     start_camera()
-#     return render_template('camera.html')
 
-
+# Route to the index page where the camera feed is displayed
 @app.route('/')
 def index():
     start_camera()
     return render_template('index.html')
 
 
+# Function to start to the app 
 if __name__ == '__main__':
     host = start_camera()  # Determine the camera type and get the host value
     app.run(debug=True, host=host)
