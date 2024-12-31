@@ -6,7 +6,7 @@ dlib @ https://github.com/jloh02/dlib/releases/download/v19.22/dlib-19.22.99-cp3
 face-recognition==1.3.0
 face-recognition-models==0.3.0
 Flask==3.0.1
-gunicorn==21.2.0
+gunicorn==22.0.0
 itsdangerous==2.1.2
 Jinja2==3.1.3
 MarkupSafe==2.1.4
