@@ -14,4 +14,4 @@ numpy==1.26.3
 opencv-python==4.9.0.80
 packaging==23.2
 pillow==10.2.0
-Werkzeug==3.0.1
+Werkzeug==3.0.6
